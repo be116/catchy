@@ -47,7 +47,7 @@ while true
       break
     end
     if diff > 0
-      puts "too %d chars long" % (diff + 1 - 6)
+      puts "too long %d chars" % (diff + 1 - 6)
     else
       puts "lack of %d chars" % (diff.abs + 1)
     end
