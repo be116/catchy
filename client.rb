@@ -1,13 +1,14 @@
 require "socket"
 
-dest = "localhost"
+dest = ""
 port = 8888
 
 if (ARGV.length != 1)
-  dest = ARGV[0]
-  puts dest
   exit
 end
+
+dest = ARGV[0]
+puts dest
 
 s = TCPSocket.open(dest, port)
 

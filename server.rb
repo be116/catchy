@@ -2,7 +2,7 @@ require "socket"
 
 port = 8888
 
-server = TCPServer.open(port)
+server = TCPServer.open("localhost", port)
 
 ball = nil
 
