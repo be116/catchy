@@ -61,10 +61,14 @@ while true
       break
     end
     diff = myball.size - ball.size
-    if diff > 0
+    if diff > 0 and diff < 6
       break
     end
-    puts "lack of %d chars" % (diff + 1)
+    if diff > 0
+      puts "too %d chars long" % (diff + 1 - 6)
+    else
+      puts "lack of %d chars" % (diff.abs + 1)
+    end
   end
   s.puts myball
 
