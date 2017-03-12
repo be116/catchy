@@ -40,6 +40,8 @@ class Game_manager
     @@now         = nil
     @@before_time = nil
 
+    @@start_timer = false
+
     def ret_limits_row
 
       return @@limits_title + @@limit.to_s
@@ -60,7 +62,7 @@ class Game_manager
 
     def detect_turn
 
-      if rand(10) % 2
+      if rand(100) % 2 == 0
         swap_turn
       end
 
@@ -134,6 +136,7 @@ class Game_manager
         if c.kind_of?(Fixnum)
         elsif c == nil
         elsif "a" <= c and c <= "z"
+          @@start_timer = true
           if @@you.size >= @@enemy.size + 5
             return
           end
@@ -206,18 +209,19 @@ class Game_manager
 
     end
 
-    
-
     # 通信相手からのメッセージの受信と処理
     def do_recv
   
       while true
         sock = @@sock
-
         command = sock.recv(65535)
-
         params = command.split("\r\n")
-        
+
+        cnt = 0
+        while cnt < (params.size - 1) do
+          cnt = do_command(params, cnt)
+        end
+
         #@@debug = ""
         #params.each { |param|
         #  @@debug += param + "\n"
@@ -225,30 +229,50 @@ class Game_manager
 
         #@@debug += @@sock.eof?.to_s
 
-        if params[0] == "tell turn"
-          if params[1] == "you"
-            @@your_turn    = true
-            @@enemies_turn = false
-          elsif params[1] == "me"
-            @@your_turn    = false
-            @@enemies_turn = true           
-          end
-        elsif params[0] == "type"
-          @@enemy = params[1]
-        elsif params[0] == "throw"
-          @@enemy = params[1]
-          swap_turn
-        elsif params[0] == "finish"
-          @@game_over = true
-          if params[1] == "you win"
-            @@win = true
-          elsif params[1] == "you lose"
-            @@lose = true
-          end
-          @@support = params[2]
-          return
-        end
       end
+
+    end
+
+    def do_command(params, cnt)
+
+      if params[cnt] == "tell turn"
+
+        cnt+=1
+        if params[cnt] == "you"
+          @@your_turn    = true
+          @@enemies_turn = false
+        elsif params[cnt] == "me"
+          @@your_turn    = false
+          @@enemies_turn = true           
+        end
+
+      elsif params[cnt] == "type"
+
+        cnt+=1
+        @@enemy = params[cnt]
+
+      elsif params[cnt] == "throw"
+
+        cnt+=1
+        @@enemy = params[cnt]
+        swap_turn
+
+      elsif params[cnt] == "finish"
+
+        @@game_over = true
+        cnt+=1
+        if params[cnt] == "you win"
+          @@win = true
+        elsif params[cnt] == "you lose"
+          @@lose = true
+        end
+        cnt+=1
+        @@support = params[cnt]
+
+      end
+
+      cnt+=1
+      return cnt
 
     end
 
@@ -263,14 +287,15 @@ class Game_manager
       end
 
       if @@game_over
+        @@debug = "push \"Space\" to close\n"
+        draw
         if @@lose
           @@sock.write("finish\r\nyou win\r\n"+@@support+"\r\n")
+          @@debug = "write"
           #@@sock.close
         end
         #@@recv_thread.join
         while true
-          @@debug = "push \"Space\" to close"
-          draw
           if Curses.getch == " "
             return false
           end  
@@ -282,16 +307,25 @@ class Game_manager
       @@before_time = @@now
 
       if @@your_turn
-        @@limit -= delta_time
+        
+        if @@start_timer
+          @@limit -= delta_time
+        end
+
         if @@you.size < @@enemy.size
           @@message = "your turn : type the same chars as enemy"
         elsif @@you.size >= @@enemy.size
           @@message = "your turn : type (0 - 5) chars and push space to throw"
         end
+        
         input_you
+      
       elsif @@enemies_turn
+      
+        @@start_timer = true
         @@message   = "enemy's turn : wait for enemy"
         #input_enemy
+      
       end
 
       return true
