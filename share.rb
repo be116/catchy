@@ -25,8 +25,8 @@ class Game_manager
     @@win_message    = "you win"
     @@lose_message   = "you lose"
 
-    @@enemies_turn   = false
-    @@your_turn      = true
+    @@enemies_turn   = true
+    @@your_turn      = false
 
     @@game_over = false
     @@win       = false
@@ -34,6 +34,11 @@ class Game_manager
 
     @@sock = nil
     @@recv_thread = nil
+
+    @@debug = ""
+
+    @@now         = nil
+    @@before_time = nil
 
     def ret_limits_row
 
@@ -53,16 +58,38 @@ class Game_manager
 
     end
 
+    def detect_turn
+
+      if rand(10) % 2
+        swap_turn
+      end
+
+      if @@your_turn
+        @@sock.write("tell turn\r\nme\r\n")
+      elsif @@enemies_turn
+        @@sock.write("tell turn\r\nyou\r\n")
+      end
+
+    end
+
     def swap_turn
 
       @@your_turn    = !@@your_turn
       @@enemies_turn = !@@enemies_turn
 
+      if @@your_turn
+        @@you   = ""
+      elsif @@enemies_turn
+        @@enemy = ""
+      end
+
+      #@@limit = @@max_limit
+
     end
 
     def judge_for_limit
 
-      if @@limit < 0
+      if @@limit <= 0
         @@limit = 0
         @@game_over = true
         @@lose      = true
@@ -99,12 +126,17 @@ class Game_manager
 
     def input_you
 
+      judge_for_limit
+
       if File.select([STDIN], [], [], 0) != nil 
         c = Curses.getch
         #Curses.delch
         if c.kind_of?(Fixnum)
         elsif c == nil
         elsif "a" <= c and c <= "z"
+          if @@you.size >= @@enemy.size + 5
+            return
+          end
           @@your_buf += c
           @@you       = @@your_buf
           judge_through_input
@@ -147,6 +179,11 @@ class Game_manager
       Curses.init_pair(COLOR_WHITE, COLOR_WHITE, COLOR_BLACK)
       Curses.init_pair(COLOR_RED, COLOR_RED, COLOR_WHITE)
 
+      @@now = Time.now
+      @@before_time = @@now
+
+      @@limit = @@max_limit
+
     end
 
     def init_client(dest_addr, port)
@@ -165,7 +202,7 @@ class Game_manager
       @@recv_thread = Thread.new { do_recv }
 
       ##youかmeかランダムに
-      @@sock.write("tell turn\r\nme\r\n")
+      detect_turn
 
     end
 
@@ -177,15 +214,16 @@ class Game_manager
       while true
         sock = @@sock
 
-        #@@message = "abc"
-
         command = sock.recv(65535)
+
         params = command.split("\r\n")
         
-        #@@support = ""
+        #@@debug = ""
         #params.each { |param|
-        #  @@support += param + "\n"
+        #  @@debug += param + "\n"
         #}
+
+        #@@debug += @@sock.eof?.to_s
 
         if params[0] == "tell turn"
           if params[1] == "you"
@@ -208,6 +246,7 @@ class Game_manager
             @@lose = true
           end
           @@support = params[2]
+          return
         end
       end
 
@@ -226,14 +265,32 @@ class Game_manager
       if @@game_over
         if @@lose
           @@sock.write("finish\r\nyou win\r\n"+@@support+"\r\n")
+          #@@sock.close
         end
         #@@recv_thread.join
-        #return false
+        while true
+          @@debug = "push \"Space\" to close"
+          draw
+          if Curses.getch == " "
+            return false
+          end  
+        end
       end
 
+      @@now = Time.now
+      delta_time = @@now - @@before_time
+      @@before_time = @@now
+
       if @@your_turn
+        @@limit -= delta_time
+        if @@you.size < @@enemy.size
+          @@message = "your turn : type the same chars as enemy"
+        elsif @@you.size >= @@enemy.size
+          @@message = "your turn : type (0 - 5) chars and push space to throw"
+        end
         input_you
       elsif @@enemies_turn
+        @@message   = "enemy's turn : wait for enemy"
         #input_enemy
       end
 
@@ -274,6 +331,9 @@ class Game_manager
       
       Curses.setpos(5, 0)
       Curses.addstr(@@support)
+
+      Curses.setpos(6, 0)
+      Curses.addstr(@@debug)
       
       Curses.refresh
     end

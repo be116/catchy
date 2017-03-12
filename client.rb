@@ -12,14 +12,18 @@ end
 dest_addr = ARGV[0]
 
 Curses.init_screen
-Game_manager.init
 Game_manager.init_client(dest_addr, port)
+Game_manager.init
 begin
+  
   while true
 
-    Game_manager.update
+    if !Game_manager.update
+      break
+    end
 
   end
+
 ensure
   Curses.close_screen
 end
