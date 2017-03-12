@@ -6,7 +6,7 @@ class Game_manager
   class << self
     # 制限時間
     @@limit     = 0
-    @@max_limit = 10
+    @@max_limit = 30
 
     # 文字列収納
     @@enemy   = ""
